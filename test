@@ -1,0 +1,375 @@
+uint16_t se_unwrap(uint8_t *time, uint8_t *userData, uint16_t dataLen, uint8_t *outData, uint16_t *outLen)
+{
+	uint16_t ret;
+	uint8_t type = 0;
+	uint16_t objId = 0;
+	uint8_t *payload;
+	uint16_t payloadLen = 0;
+	uint16_t payloadOff = 0;
+	uint16_t LenOff = 0;
+	
+	if(dataLen > 500)
+	{
+		return SS_LEN_ERROR;
+	}
+	
+	if(u16_cos_version == 0xFFFF)
+	{
+		uint8_t tmp[2] = {0};
+		ret = se_version(tmp);
+		
+		if(ret != SW_OK)
+		{
+			if(ret != 0x6D00)
+			{
+				return ret;
+			}
+		}
+		
+		u16_cos_version = getShort(tmp, 0);
+		
+		ret = se_getType(tmp);
+		
+		if(ret != SW_OK)
+		{
+			return ret;
+		}
+		
+		u16_app_type = getShort(tmp, 0);
+	}
+	
+	type = protocol_check(userData, dataLen, u16_app_type >> 8);
+	
+	// 协议类型 与 apptype 不一致？
+	
+	// 配置为默认，但解析数据不满足要求
+	if(type == PROTOCOL_NONE)
+	{
+		*outLen = 0;
+		return SS_ERROR;
+	}
+	
+	if((u16_app_type >> 8) == 0xFF)
+	{
+		if(type == PROTOCOL_CIVILIAN_GAS)
+		{
+			payloadOff = 9;
+			memmove(outData, userData, payloadOff);
+			objId = getShort(outData, payloadOff - 2);
+			if(objId != 0x9119 && objId != 0x9116)
+			{
+				//decrypt
+				memmove(outData + payloadOff, userData + payloadOff, LEN_SN);
+				if(dataLen < (payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION)){
+					return SS_LEN_ERROR;
+				}
+				if(dataLen < 16){
+					return SS_LEN_ERROR;
+				}
+				memmove(outData + payloadOff + LEN_SN, userData + payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_SN - LEN_APPTYPE - LEN_COSVERSION);
+				payload = outData + payloadOff;
+				payloadLen = dataLen - 12 - 4;
+				LenOff = 3;
+			}
+			else
+			{
+				//update
+				if(dataLen < (payloadOff + LEN_APPTYPE + LEN_COSVERSION)){
+					return SS_LEN_ERROR;
+				}
+				if(dataLen < 16){
+					return SS_LEN_ERROR;
+				}
+				memmove(outData + payloadOff, userData + payloadOff + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_APPTYPE - LEN_COSVERSION);
+				payload = outData + payloadOff;
+				payloadLen = dataLen - 12 - 4;
+				LenOff = 3;
+			}
+
+		}
+		else if(type == PROTOCOL_COMMERCIAL_GAS)
+		{
+			payloadOff = 17;
+			memmove(outData, userData, payloadOff);
+			objId = getShort(outData, payloadOff - 2);
+			if(objId != 0x9119 && objId != 0x9116)
+			{
+				memmove(outData + payloadOff, userData + payloadOff, LEN_SN);
+				if(dataLen < (payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION)){
+					return SS_LEN_ERROR;
+				}
+				if(dataLen < 24){
+					return SS_LEN_ERROR;
+				}
+				memmove(outData + payloadOff + LEN_SN, userData + payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_SN - LEN_APPTYPE - LEN_COSVERSION);
+				payload = outData + payloadOff;
+				payloadLen = dataLen - 20 - 4;
+				LenOff = 3;
+			}
+			else
+			{
+				//update
+				if(dataLen < (payloadOff + LEN_APPTYPE + LEN_COSVERSION)){
+					return SS_LEN_ERROR;
+				}
+				if(dataLen < 24){
+					return SS_LEN_ERROR;
+				}
+				memmove(outData + payloadOff, userData + payloadOff + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_APPTYPE - LEN_COSVERSION);
+				payload = outData + payloadOff;
+				payloadLen = dataLen - 20 - 4;
+				LenOff = 3;
+			}
+		}
+		else if(type == PROTOCOL_ALARM)
+		{
+			payloadOff = 16;
+			memmove(outData, userData, payloadOff);
+			objId = outData[payloadOff - 1];
+			if(objId != 0x99 && objId != 0x96)
+			{
+				memmove(outData + payloadOff, userData + payloadOff, LEN_SN);
+				if(dataLen < (payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION)){
+					return SS_LEN_ERROR;
+				}
+				if(dataLen < 23){
+					return SS_LEN_ERROR;
+				}
+				memmove(outData + payloadOff + LEN_SN, userData + payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_SN - LEN_APPTYPE - LEN_COSVERSION);
+				payload = outData + payloadOff;
+				payloadLen = dataLen - 19 - 4;
+				LenOff = 3;
+			}
+			else
+			{
+				if(dataLen < (payloadOff + LEN_APPTYPE + LEN_COSVERSION)){
+					return SS_LEN_ERROR;
+				}
+				if(dataLen < 23){
+					return SS_LEN_ERROR;
+				}
+				memmove(outData + payloadOff, userData + payloadOff + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_APPTYPE - LEN_COSVERSION);
+				payload = outData + payloadOff;
+				payloadLen = dataLen - 19 - 4;
+				LenOff = 3;
+			}
+			
+		}
+		else
+		{
+			return SS_ERROR;
+		}
+		
+		if(((type == PROTOCOL_CIVILIAN_GAS || type == PROTOCOL_COMMERCIAL_GAS) && (objId == 0x9119 || objId == 0x9116)) ||
+		   ((type == PROTOCOL_ALARM) && (objId == 0x99 || objId == 0x96)) )
+		{
+			uint8_t dataOff;
+			if(type == PROTOCOL_ALARM)
+			{
+				dataOff = 7;	//retcode 1 byte + 6bytes time
+			}
+			else{
+				dataOff = 8;	//retcode 2 byte + 6bytes time
+			}
+			port_se_power(1);
+			port_sys_sleep(10);
+			ret = se_transmit(INS_KEYUPDATE, time, payload, payloadLen, outData + payloadOff + dataOff, outLen);
+			port_se_power(0);
+			
+			if(ret != SW_OK)
+			{
+				//fail
+				if(type == PROTOCOL_ALARM)
+				{
+					outData[payloadOff] = ret >> 8;
+					memmove(outData + payloadOff + 1, time, 6);
+				}
+				else
+				{
+					setShort(outData, payloadOff, ret);
+					memmove(outData + payloadOff + 2, time, 6);
+				}
+				
+#if 0				
+				//move to pad apptype/cosversion
+				memmove(outData + payloadOff + dataOff + OFFSET_APPTYPE + LEN_APPTYPE + LEN_COSVERSION, outData + payloadOff + dataOff + OFFSET_APPTYPE, *outLen - LEN_MID - LEN_SN);
+				outData[payloadOff + dataOff + OFFSET_APPTYPE] = type;
+				outData[payloadOff + dataOff + OFFSET_APPTYPE + 1] = 0;
+				setShort(outData, payloadOff + dataOff + OFFSET_APPTYPE + LEN_APPTYPE, u16_cos_version);
+				*outLen = payloadOff + dataOff + LEN_APPTYPE + LEN_COSVERSION +  *outLen + LEN_CRC + LEN_MAGIC;
+#else
+				*outLen = payloadOff + dataOff + LEN_CRC + LEN_MAGIC;
+#endif				
+				// fix len & crc & tail
+				setShort(outData, LenOff, *outLen);
+				outData[*outLen - LEN_MAGIC] = PROTOCOL_END_MAGIC;
+				uint16_t crc = crc16_xmodem(outData + LenOff + LEN_PROTOCOLEN, *outLen - LenOff - LEN_PROTOCOLEN - LEN_CRC - LEN_MAGIC);
+				setShort(outData, *outLen - LEN_CRC - LEN_MAGIC, crc);
+				return ret;
+				
+			}
+			else
+			{
+
+				if(type == PROTOCOL_ALARM)
+				{
+					outData[payloadOff] = 0;
+					memmove(outData + payloadOff + 1, time, 6);
+				}
+				else
+				{
+					setShort(outData, payloadOff, 0);
+					memmove(outData + payloadOff + 2, time, 6);
+				}
+
+				//move to pad apptype/cosversion
+				memmove(outData + payloadOff + dataOff + OFFSET_APPTYPE + LEN_APPTYPE + LEN_COSVERSION, outData + payloadOff + dataOff + OFFSET_APPTYPE, *outLen - LEN_MID - LEN_SN);
+				outData[payloadOff + dataOff + OFFSET_APPTYPE] = type;
+				outData[payloadOff + dataOff + OFFSET_APPTYPE + 1] = 0;
+				setShort(outData, payloadOff + dataOff + OFFSET_APPTYPE + LEN_APPTYPE, u16_cos_version);
+				*outLen = payloadOff + dataOff + LEN_APPTYPE + LEN_COSVERSION +  *outLen + LEN_CRC + LEN_MAGIC;
+				// fix len & crc & tail
+				setShort(outData, LenOff, *outLen);
+				outData[*outLen - LEN_MAGIC] = PROTOCOL_END_MAGIC;
+				uint16_t crc = crc16_xmodem(outData + LenOff + LEN_PROTOCOLEN, *outLen - LenOff - LEN_PROTOCOLEN - LEN_CRC - LEN_MAGIC);
+				setShort(outData, *outLen - LEN_CRC - LEN_MAGIC, crc);
+				
+				if(objId == 0x99){
+					objId = 0x9119;
+				}
+				if(objId == 0x96){
+					objId = 0x9116;
+				}
+				return objId;
+			}
+		}
+		else
+		{
+		
+			port_se_power(1);
+			port_sys_sleep(10);
+			ret = se_transmit(INS_UNWRAP, 0, payload, payloadLen, outData + payloadOff, outLen);//sw + time 8bytes
+			port_se_power(0);
+			
+			if(ret == SW_OK)
+			{
+				*outLen = payloadOff + *outLen + LEN_CRC + LEN_MAGIC;
+				// fix len & crc & tail
+				setShort(outData, LenOff, *outLen);
+				outData[*outLen - LEN_MAGIC] = PROTOCOL_END_MAGIC;
+				uint16_t crc = crc16_xmodem(outData + LenOff + LEN_PROTOCOLEN, *outLen - LenOff - LEN_PROTOCOLEN - LEN_CRC - LEN_MAGIC);
+				setShort(outData, *outLen - LEN_CRC - LEN_MAGIC, crc);
+				return SW_OK;
+			}
+			else
+			{
+				*outLen = 0;
+				return ret;
+			}
+		}
+	}
+	else if((u16_app_type >> 8) == PROTOCOL_CUSTOM)
+	{
+		payloadOff = 7;
+		objId = getShort(userData, payloadOff - 2);
+		memmove(outData, userData, payloadOff);
+		if(objId != 0x9116)
+		{
+			if(dataLen < (payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION)){
+				return SS_LEN_ERROR;
+			}
+
+			memmove(userData + payloadOff + LEN_SN, userData + payloadOff + LEN_SN + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_SN - LEN_APPTYPE - LEN_COSVERSION);
+			payload = userData + payloadOff;
+		}
+		else{
+
+			if(dataLen < (payloadOff + LEN_APPTYPE + LEN_COSVERSION)){
+				return SS_LEN_ERROR;
+			}
+
+			memmove(userData + payloadOff, userData + payloadOff + LEN_APPTYPE + LEN_COSVERSION, dataLen - payloadOff - LEN_APPTYPE - LEN_COSVERSION);
+			payload = userData + payloadOff;
+			
+		}
+
+		if(dataLen < 14){
+			return SS_LEN_ERROR;
+		}
+
+		payloadLen = dataLen - 10 - 4;
+		LenOff = 3;
+		
+		if(objId == 0x9116)
+		{
+			port_se_power(1);
+			port_sys_sleep(10);
+			ret = se_transmit(INS_KEYUPDATE, time, payload, payloadLen, outData + payloadOff + 8, outLen);//sw + time 8bytes
+			port_se_power(0);
+			
+			if(ret != SW_OK)
+			{
+				//fail
+				setShort(outData, payloadOff, ret);
+				memmove(outData + payloadOff + 2, time, 6);
+#if 0
+				//move to pad apptype/cosversion
+				memmove(outData + payloadOff + 8 + OFFSET_APPTYPE + LEN_APPTYPE + LEN_COSVERSION, outData + payloadOff + 8 + OFFSET_APPTYPE, *outLen - LEN_MID - LEN_SN);
+				setShort(outData, payloadOff + 8 + OFFSET_APPTYPE, u16_app_type);
+				setShort(outData, payloadOff + 8 + OFFSET_APPTYPE + LEN_APPTYPE, u16_cos_version);
+				*outLen = payloadOff + 8 + LEN_APPTYPE + LEN_COSVERSION +  *outLen + LEN_CRC + LEN_MAGIC;
+#else
+				*outLen = payloadOff + 8 + LEN_CRC + LEN_MAGIC;
+#endif
+				// fix len & crc & tail
+				setShort(outData, LenOff, *outLen);
+				outData[*outLen - LEN_MAGIC] = PROTOCOL_END_MAGIC;
+				uint16_t crc = crc16_xmodem(outData + LenOff + LEN_PROTOCOLEN, *outLen - LenOff - LEN_PROTOCOLEN - LEN_CRC - LEN_MAGIC);
+				setShort(outData, *outLen - LEN_CRC - LEN_MAGIC, crc);
+				return objId;
+
+			}
+			else
+			{
+				setShort(outData, payloadOff, 0);
+				memmove(outData + payloadOff + 2, time, 6);
+				//move to pad apptype/cosversion
+				memmove(outData + payloadOff + 8 + OFFSET_APPTYPE + LEN_APPTYPE + LEN_COSVERSION, outData + payloadOff + 8 + OFFSET_APPTYPE, *outLen - LEN_MID - LEN_SN);
+				setShort(outData, payloadOff + 8 + OFFSET_APPTYPE, u16_app_type);
+				setShort(outData, payloadOff + 8 + OFFSET_APPTYPE + LEN_APPTYPE, u16_cos_version);
+				*outLen = payloadOff + 8 + LEN_APPTYPE + LEN_COSVERSION +  *outLen + LEN_CRC + LEN_MAGIC;
+				// fix len & crc & tail
+				setShort(outData, LenOff, *outLen);
+				outData[*outLen - LEN_MAGIC] = PROTOCOL_END_MAGIC;
+				uint16_t crc = crc16_xmodem(outData + LenOff + LEN_PROTOCOLEN, *outLen - LenOff - LEN_PROTOCOLEN - LEN_CRC - LEN_MAGIC);
+				setShort(outData, *outLen - LEN_CRC - LEN_MAGIC, crc);
+				return objId;
+			}
+		}
+		else
+		{
+		
+			port_se_power(1);
+			port_sys_sleep(10);
+			ret = se_transmit(INS_UNWRAP, 0, payload, payloadLen, outData, outLen);//sw + time 8bytes
+			port_se_power(0);
+			
+			if(ret == SW_OK)
+			{
+				return SW_OK;
+			}
+			else
+			{
+				*outLen = 0;
+				return ret;
+			}
+		}
+		
+	}
+	else
+	{
+		*outLen = 0;
+		return SS_ERROR;
+	}
+	
+}
